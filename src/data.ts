@@ -4,7 +4,7 @@ export const initialProducts: Product[] = [
   {
     id: 'p-veda-main',
     name: 'VEDA KING Natural Herbal Hair Oil (Pure Organic Care)',
-    price: 249,
+    price: 1,
     mrp: 299,
     category: 'Hair Care',
     imageUrl: 'https://i.ibb.co/sp7dDgpD/photo-2026-09-09-21-39-49.jpg',
