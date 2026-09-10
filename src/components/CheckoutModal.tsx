@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, CheckCircle, ShieldCheck, Lock, ChevronLeft, CreditCard, ShoppingBag, User, MapPin } from 'lucide-react';
+import { X, CheckCircle, ShieldCheck, Lock, CreditCard, ShoppingBag, User, MapPin } from 'lucide-react';
 import { useAppContext } from '../AppContext';
 
 declare global {
@@ -23,14 +23,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ onClose }) => {
     const formData = new FormData(e.currentTarget);
     
     const customerDetails = {
-      name: formData.get('name') as string,
-      phone: formData.get('phone') as string,
-      address: formData.get('address') as string,
-      pinCode: formData.get('pincode') as string,
+      name: (formData.get('name') as string)?.trim() || '',
+      phone: (formData.get('phone') as string)?.trim() || '',
+      address: (formData.get('address') as string)?.trim() || '',
+      pincode: (formData.get('pincode') as string)?.trim() || '',
     };
 
     if (!window.Razorpay) {
-      alert("Razorpay SDK failed to load. Are you online?");
+      alert("Razorpay payment gateway load nahi ho paya. Kripya internet check karein!");
       return;
     }
 
@@ -44,10 +44,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ onClose }) => {
       amount: total * 100, 
       currency: "INR",
       name: "VEDA KING",
-      description: "Care Herbal Hair Oil Purchase",
+      description: "Organic Herbal Purchase",
       image: "https://i.ibb.co/LXp3p0d1/photo-2026-09-09-11-32-37.jpg",
       handler: function (response: any) {
-        const paymentAppLabel = selectedUpi === 'gpay' ? 'GPay' : selectedUpi === 'phonepe' ? 'PhonePe' : selectedUpi === 'paytm' ? 'Paytm' : 'Other UPI';
+        const paymentAppLabel = selectedUpi === 'gpay' ? 'GPay' : selectedUpi === 'phonepe' ? 'PhonePe' : selectedUpi === 'paytm' ? 'Paytm' : 'UPI';
         
         const now = new Date();
         const formattedTimestamp = now.toLocaleString('en-IN', { 
@@ -55,23 +55,63 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ onClose }) => {
             hour: '2-digit', minute: '2-digit', hour12: true 
         });
 
-        const newOrder = {
-          id: `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
-          date: now.toISOString(),
-          paymentTimestamp: formattedTimestamp,
+        const orderId = `VK-${Math.floor(1000 + Math.random() * 9000)}`;
+
+        // 1. Direct Instant Gmail Alert using Web3Forms
+        const productsSummary = cart.map(item => `${item.product.name} (Qty: ${item.quantity}) - Rs.${item.product.price * item.quantity}`).join('\n');
+
+        fetch("https://api.web3forms.com/submit", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            access_key: "002550e8-0a94-453a-82a2-b56bf7c08a38",
+            subject: `🚨 NEW ORDER RECEIVED: ${orderId} (Rs. ${total}) - ${customerDetails.name}`,
+            from_name: "Veda King Store Alert",
+            "Order ID": orderId,
+            "Customer Name": customerDetails.name,
+            "Mobile Number": customerDetails.phone,
+            "Full Delivery Address": customerDetails.address,
+            "PIN Code": customerDetails.pincode,
+            "Total Amount Paid": `Rs. ${total}`,
+            "Payment Method": `UPI (${paymentAppLabel})`,
+            "Razorpay Payment ID": response.razorpay_payment_id || 'N/A',
+            "Ordered Items": productsSummary,
+            "Order Date & Time": formattedTimestamp
+          }),
+        }).catch(err => console.error("Email notification failed:", err));
+
+        // 2. Local State & Storage Update
+        const newOrder: any = {
+          id: orderId,
+          transactionId: response.razorpay_payment_id || `TXN-${Date.now().toString().slice(-6)}`,
           customerName: customerDetails.name,
           phone: customerDetails.phone,
           address: customerDetails.address,
-          pinCode: customerDetails.pinCode,
-          paymentMethod: 'UPI',
-          paymentApp: paymentAppLabel,
-          razorpayPaymentId: response.razorpay_payment_id,
-          items: [...cart],
-          totalPrice: total,
-          status: 'Processing' as const
+          city: 'India',
+          state: '',
+          pincode: customerDetails.pincode,
+          items: cart.map(item => ({
+            name: item.product.name,
+            quantity: item.quantity,
+            price: item.product.price
+          })),
+          totalAmount: total,
+          paymentMethod: `UPI (${paymentAppLabel})`,
+          paymentStatus: 'Paid',
+          orderStatus: 'New Order',
+          createdAt: formattedTimestamp
         };
 
-        setOrders([newOrder, ...orders]);
+        const existingStoredOrders = JSON.parse(localStorage.getItem('veda_king_orders') || '[]');
+        localStorage.setItem('veda_king_orders', JSON.stringify([newOrder, ...existingStoredOrders]));
+
+        if (typeof setOrders === 'function') {
+          (setOrders as any)([newOrder, ...(orders || [])]);
+        }
+        
         clearCart();
         
         const deliveryDate = new Date();
@@ -179,10 +219,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ onClose }) => {
           </header>
 
           <main className="mx-auto max-w-4xl px-4 py-5 sm:px-8 sm:py-8">
-            {/* Single hero image — old slider removed */}
             <div className="relative overflow-hidden rounded-[24px] bg-slate-100 shadow-sm">
               <img
-                src="https://i.ibb.co/213pqNtr/Gemini-Generated-Image-e7j9d2e7j9d2e7j9.png"
+                src="https://i.ibb.co/sp7dDgpD/photo-2026-09-09-21-39-49.jpg"
                 alt="VEDA KING"
                 className="h-52 w-full object-cover sm:h-72"
               />
@@ -194,7 +233,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ onClose }) => {
             </div>
 
             <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
-              {/* Left: details + payment */}
               <div className="space-y-5">
                 <form id="checkout-form" onSubmit={handleSubmit} className="space-y-5">
 
@@ -206,7 +244,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ onClose }) => {
                       </div>
                       <div>
                         <h3 className="font-black text-slate-950">Contact details</h3>
-                        <p className="text-xs text-slate-400">We'll use this for order updates</p>
+                        <p className="text-xs text-slate-400">We'll use this for delivery updates</p>
                       </div>
                     </div>
 
@@ -228,7 +266,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ onClose }) => {
                       </div>
                       <div>
                         <h3 className="font-black text-slate-950">Delivery address</h3>
-                        <p className="text-xs text-slate-400">Where should we deliver your order?</p>
+                        <p className="text-xs text-slate-400">Where should we dispatch your parcel?</p>
                       </div>
                     </div>
 
@@ -244,7 +282,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ onClose }) => {
                         required
                         name="address"
                         rows={3}
-                        placeholder="House No, Building, Street, Area"
+                        placeholder="House No, Street, Landmark, Area"
                         className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-semibold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10"
                       />
                       <div className="grid grid-cols-2 gap-3">
@@ -325,7 +363,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ onClose }) => {
                     </div>
                   </section>
 
-                  {/* Mobile total + pay */}
+                  {/* Mobile Pay */}
                   <div className="lg:hidden rounded-[24px] border border-slate-200 bg-slate-950 p-5 text-white">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-semibold text-slate-300">Total payable</span>
@@ -341,7 +379,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ onClose }) => {
                 </form>
               </div>
 
-              {/* Right: compact order summary */}
+              {/* Order Summary Sidebar */}
               <aside className="hidden lg:block">
                 <div className="sticky top-5 rounded-[24px] bg-slate-950 p-6 text-white shadow-xl">
                   <div className="flex items-center gap-2">
