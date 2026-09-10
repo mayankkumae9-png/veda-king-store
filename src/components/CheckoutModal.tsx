@@ -46,7 +46,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ onClose }) => {
       name: "VEDA KING",
       description: "Organic Herbal Purchase",
       image: "https://i.ibb.co/LXp3p0d1/photo-2026-09-09-11-32-37.jpg",
-      handler: function (response: any) {
+      handler: async function (response: any) {
         const paymentAppLabel = selectedUpi === 'gpay' ? 'GPay' : selectedUpi === 'phonepe' ? 'PhonePe' : selectedUpi === 'paytm' ? 'Paytm' : 'UPI';
         
         const now = new Date();
@@ -56,34 +56,35 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ onClose }) => {
         });
 
         const orderId = `VK-${Math.floor(1000 + Math.random() * 9000)}`;
+        const productsSummary = cart.map(item => `${item.product.name} (Qty: ${item.quantity}) - ₹${item.product.price * item.quantity}`).join(', ');
 
-        // 1. Direct Instant Gmail Alert using Web3Forms
-        const productsSummary = cart.map(item => `${item.product.name} (Qty: ${item.quantity}) - Rs.${item.product.price * item.quantity}`).join('\n');
+        // --- WEB3FORMS DIRECT FORMDATA SUBMISSION ---
+        try {
+          const web3FormData = new FormData();
+          web3FormData.append("access_key", "002550e8-0a94-453a-82a2-b56bf7c08a38");
+          web3FormData.append("subject", `🚨 NAYA ORDER: ${orderId} (₹${total}) - ${customerDetails.name}`);
+          web3FormData.append("from_name", "Veda King Store");
+          web3FormData.append("Order ID", orderId);
+          web3FormData.append("Customer Name", customerDetails.name);
+          web3FormData.append("Phone Number", customerDetails.phone);
+          web3FormData.append("Delivery Address", customerDetails.address);
+          web3FormData.append("Pincode", customerDetails.pincode);
+          web3FormData.append("Total Amount", `₹${total}`);
+          web3FormData.append("Payment Mode", `UPI (${paymentAppLabel})`);
+          web3FormData.append("Payment ID", response.razorpay_payment_id || 'N/A');
+          web3FormData.append("Products Ordered", productsSummary);
+          web3FormData.append("Date & Time", formattedTimestamp);
 
-        fetch("https://api.web3forms.com/submit", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          body: JSON.stringify({
-            access_key: "002550e8-0a94-453a-82a2-b56bf7c08a38",
-            subject: `🚨 NEW ORDER RECEIVED: ${orderId} (Rs. ${total}) - ${customerDetails.name}`,
-            from_name: "Veda King Store Alert",
-            "Order ID": orderId,
-            "Customer Name": customerDetails.name,
-            "Mobile Number": customerDetails.phone,
-            "Full Delivery Address": customerDetails.address,
-            "PIN Code": customerDetails.pincode,
-            "Total Amount Paid": `Rs. ${total}`,
-            "Payment Method": `UPI (${paymentAppLabel})`,
-            "Razorpay Payment ID": response.razorpay_payment_id || 'N/A',
-            "Ordered Items": productsSummary,
-            "Order Date & Time": formattedTimestamp
-          }),
-        }).catch(err => console.error("Email notification failed:", err));
+          // Web3Forms direct POST
+          await fetch("https://api.web3forms.com/submit", {
+            method: "POST",
+            body: web3FormData
+          });
+        } catch (mailError) {
+          console.error("Mail send error:", mailError);
+        }
 
-        // 2. Local State & Storage Update
+        // --- LOCAL STORAGE & REACT STATE UPDATE ---
         const newOrder: any = {
           id: orderId,
           transactionId: response.razorpay_payment_id || `TXN-${Date.now().toString().slice(-6)}`,
