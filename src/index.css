@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+body {
+  background-color: #f1f8f4; /* Natural, very soft and smooth green */
+  color: #1A1A1A;
+}
+
+.logo-3d {
+  background: linear-gradient(to bottom, #d4af37 0%, #aa7c11 40%, #064e3b 60%, #047857 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0px 1px 0px #022c22)
+          drop-shadow(0px 2px 0px #022c22)
+          drop-shadow(0px 3px 0px #022c22)
+          drop-shadow(0px 4px 6px rgba(0,0,0,0.6));
+}
