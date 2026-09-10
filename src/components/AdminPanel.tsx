@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export interface OrderItem {
   name: string;
@@ -29,70 +29,56 @@ interface AdminDashboardProps {
   orders?: CustomerOrder[];
 }
 
-export const AdminPanel: React.FC<AdminDashboardProps> = ({ orders = [] }) => {
+export const AdminPanel: React.FC<AdminDashboardProps> = ({ orders }) => {
+  // Sirf real orders load honge (Props se ya localStorage se)
+  const [orderList, setOrderList] = useState<CustomerOrder[]>(() => {
+    if (orders && orders.length > 0) return orders;
+    const saved = localStorage.getItem('veda_king_orders');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const [filter, setFilter] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
-  // Sample data agar backend se real orders abhi connect na hon
-  const initialOrders: CustomerOrder[] = orders.length > 0 ? orders : [
-    {
-      id: 'VK-9842',
-      transactionId: 'TXN-UPI-983271892',
-      customerName: 'Aman Sharma',
-      phone: '9876543210',
-      altPhone: '9123456780',
-      address: 'Flat No. 402, Royal Residency, Opp. City Mall, Main Bypass Road',
-      landmark: 'Near Hanuman Mandir',
-      city: 'Kanpur',
-      state: 'Uttar Pradesh',
-      pincode: '208001',
-      items: [
-        { name: 'Pure Roots Organic Shilajit Resin (20g)', quantity: 2, price: 999 }
-      ],
-      totalAmount: 1998,
-      paymentMethod: 'UPI / Online',
-      paymentStatus: 'Paid',
-      orderStatus: 'New Order',
-      createdAt: '10 Sep 2026, 04:15 PM'
-    },
-    {
-      id: 'VK-9841',
-      transactionId: 'COD-VERIFIED-492',
-      customerName: 'Vikram Rajput',
-      phone: '8765432109',
-      address: 'Village & Post Rampur, Gali No. 3, House #14',
-      landmark: 'Water Tank ke paas',
-      city: 'Lucknow',
-      state: 'Uttar Pradesh',
-      pincode: '226001',
-      items: [
-        { name: 'Veda King Ayurvedic Power Capsules (60 caps)', quantity: 1, price: 1299 }
-      ],
-      totalAmount: 1299,
-      paymentMethod: 'COD',
-      paymentStatus: 'Pending Verification',
-      orderStatus: 'New Order',
-      createdAt: '10 Sep 2026, 02:40 PM'
+  // LocalStorage update sync
+  useEffect(() => {
+    if (orders && orders.length > 0) {
+      setOrderList(orders);
     }
-  ];
+  }, [orders]);
 
-  const [orderList, setOrderList] = useState<CustomerOrder[]>(initialOrders);
+  const saveOrders = (updated: CustomerOrder[]) => {
+    setOrderList(updated);
+    localStorage.setItem('veda_king_orders', JSON.stringify(updated));
+  };
 
-  // Statistics calculation
+  // Order Delete Functionality
+  const handleDeleteOrder = (id: string, name: string) => {
+    const confirmDelete = window.confirm(`Kya aap sach me "${name}" ka order (${id}) delete karna chahte hain?`);
+    if (confirmDelete) {
+      const updated = orderList.filter(o => o.id !== id);
+      saveOrders(updated);
+    }
+  };
+
+  // Status Change
+  const handleStatusChange = (id: string, newStatus: CustomerOrder['orderStatus']) => {
+    const updated = orderList.map(o => o.id === id ? { ...o, orderStatus: newStatus } : o);
+    saveOrders(updated);
+  };
+
+  // 1-Click Copy Full Address
+  const copyAddress = (order: CustomerOrder) => {
+    const text = `Name: ${order.customerName}\nPhone: ${order.phone} ${order.altPhone ? `(${order.altPhone})` : ''}\nAddress: ${order.address}\nLandmark: ${order.landmark || 'N/A'}\nCity/State: ${order.city}, ${order.state}\nPin: ${order.pincode}\nAmount: Rs.${order.totalAmount} (${order.paymentMethod})`;
+    navigator.clipboard.writeText(text);
+    alert('✅ Customer Address Copied!');
+  };
+
+  // Dynamic Statistics
   const totalRevenue = orderList.reduce((acc, curr) => acc + curr.totalAmount, 0);
   const totalOrdersCount = orderList.length;
   const newOrdersCount = orderList.filter(o => o.orderStatus === 'New Order').length;
   const deliveredCount = orderList.filter(o => o.orderStatus === 'Delivered').length;
-
-  const handleStatusChange = (id: string, newStatus: CustomerOrder['orderStatus']) => {
-    setOrderList(prev => prev.map(o => o.id === id ? { ...o, orderStatus: newStatus } : o));
-  };
-
-  const copyAddress = (order: CustomerOrder) => {
-    const text = `Name: ${order.customerName}\nPhone: ${order.phone} ${order.altPhone ? `(${order.altPhone})` : ''}\nAddress: ${order.address}\nLandmark: ${order.landmark || 'N/A'}\nCity/State: ${order.city}, ${order.state}\nPin: ${order.pincode}\nAmount to Collect: Rs.${order.totalAmount} (${order.paymentMethod})`;
-    navigator.clipboard.writeText(text);
-    alert('✅ Address copied to clipboard!');
-  };
 
   const filteredOrders = orderList.filter(o => {
     const matchesFilter = filter === 'All' || o.orderStatus === filter;
@@ -113,12 +99,12 @@ export const AdminPanel: React.FC<AdminDashboardProps> = ({ orders = [] }) => {
             <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
               👑 Veda King — Orders & Logistics Dashboard
             </h1>
-            <p className="text-sm text-slate-500 mt-1">Live customer dispatches, payments, aur accurate delivery addresses</p>
+            <p className="text-sm text-slate-500 mt-1">Real-time live customer orders aur shipping labels</p>
           </div>
           <div className="flex items-center gap-3">
             <input 
               type="text" 
-              placeholder="Search by name, phone, PIN or Order ID..."
+              placeholder="Search Name, Phone, PIN..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
@@ -129,11 +115,11 @@ export const AdminPanel: React.FC<AdminDashboardProps> = ({ orders = [] }) => {
         {/* 4 Metric Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Orders</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Live Orders</p>
             <p className="text-3xl font-black text-slate-900 dark:text-white mt-1">{totalOrdersCount}</p>
           </div>
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-wider text-amber-500">New / Pending Orders</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-amber-500">Pending Orders</p>
             <p className="text-3xl font-black text-amber-600 mt-1">{newOrdersCount}</p>
           </div>
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -141,12 +127,12 @@ export const AdminPanel: React.FC<AdminDashboardProps> = ({ orders = [] }) => {
             <p className="text-3xl font-black text-emerald-600 mt-1">{deliveredCount}</p>
           </div>
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-wider text-blue-500">Total Sales Volume</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-blue-500">Total Sales Value</p>
             <p className="text-3xl font-black text-blue-600 mt-1">₹{totalRevenue.toLocaleString('en-IN')}</p>
           </div>
         </div>
 
-        {/* Filter Navigation */}
+        {/* Filter Bar */}
         <div className="flex gap-2 border-b border-slate-200 dark:border-slate-800 pb-2 overflow-x-auto">
           {['All', 'New Order', 'Packed', 'Shipped', 'Delivered'].map((tab) => (
             <button
@@ -163,11 +149,13 @@ export const AdminPanel: React.FC<AdminDashboardProps> = ({ orders = [] }) => {
           ))}
         </div>
 
-        {/* Orders Card View */}
+        {/* Orders List */}
         <div className="space-y-6">
           {filteredOrders.length === 0 ? (
-            <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
-              <p className="text-slate-400 font-semibold">Koi order nahi mila.</p>
+            <div className="p-16 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+              <div className="text-5xl mb-3">📦</div>
+              <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200">Abhi tak koi order nahi aaya hai</h3>
+              <p className="text-sm text-slate-400 mt-1">Jaise hi customer website par jakar buy karega, order turant yahan show hone lagega.</p>
             </div>
           ) : (
             filteredOrders.map((order) => {
@@ -179,7 +167,7 @@ export const AdminPanel: React.FC<AdminDashboardProps> = ({ orders = [] }) => {
                   key={order.id}
                   className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden"
                 >
-                  {/* Card Top Strip */}
+                  {/* Top Bar with Status and Delete Option */}
                   <div className="px-6 py-3.5 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <span className="font-mono text-sm font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2.5 py-1 rounded-md border border-amber-200 dark:border-amber-800">
@@ -200,13 +188,22 @@ export const AdminPanel: React.FC<AdminDashboardProps> = ({ orders = [] }) => {
                         <option value="Shipped">🚚 Shipped</option>
                         <option value="Delivered">🟢 Delivered</option>
                       </select>
+
+                      {/* Delete Order Button */}
+                      <button
+                        onClick={() => handleDeleteOrder(order.id, order.customerName)}
+                        className="text-xs font-bold text-red-600 hover:text-white hover:bg-red-600 border border-red-200 dark:border-red-900 px-3 py-1.5 rounded-lg transition-all flex items-center gap-1"
+                        title="Delete this order"
+                      >
+                        🗑️ Delete
+                      </button>
                     </div>
                   </div>
 
-                  {/* Main 3-Column Layout */}
+                  {/* 3 Columns Layout */}
                   <div className="p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
                     
-                    {/* Column 1: FULL CLEAN ADDRESS (5 Cols) */}
+                    {/* Customer & Address Details */}
                     <div className="lg:col-span-5 bg-amber-50/40 dark:bg-slate-950 p-4 rounded-xl border border-amber-200/60 dark:border-slate-800 space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-black uppercase tracking-wider text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
@@ -237,9 +234,9 @@ export const AdminPanel: React.FC<AdminDashboardProps> = ({ orders = [] }) => {
                         </div>
                       </div>
 
-                      {/* Exact Address Paragraph */}
+                      {/* Full House/Street Address */}
                       <div className="bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
-                        <p className="text-xs text-slate-400 uppercase font-semibold">Street / Flat / House / Gali:</p>
+                        <p className="text-xs text-slate-400 uppercase font-semibold">Address / Gali / House No:</p>
                         <p className="text-sm font-medium text-slate-800 dark:text-slate-200 mt-0.5 leading-snug break-words">
                           {order.address}
                         </p>
@@ -250,7 +247,7 @@ export const AdminPanel: React.FC<AdminDashboardProps> = ({ orders = [] }) => {
                         )}
                       </div>
 
-                      {/* City, State & Pincode Highlight */}
+                      {/* City & PIN */}
                       <div className="flex items-center justify-between text-xs font-bold bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800">
                         <span className="text-slate-700 dark:text-slate-300">{order.city}, {order.state}</span>
                         <span className="text-xs font-black bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 px-2 py-1 rounded tracking-widest font-mono">
@@ -259,7 +256,7 @@ export const AdminPanel: React.FC<AdminDashboardProps> = ({ orders = [] }) => {
                       </div>
                     </div>
 
-                    {/* Column 2: PRODUCT & TRANSACTION DETAILS (4 Cols) */}
+                    {/* Products & Transaction Details */}
                     <div className="lg:col-span-4 flex flex-col justify-between space-y-4">
                       <div>
                         <p className="text-xs font-black uppercase tracking-wider text-slate-400 mb-2">
@@ -277,10 +274,9 @@ export const AdminPanel: React.FC<AdminDashboardProps> = ({ orders = [] }) => {
                         </div>
                       </div>
 
-                      {/* Transaction and Payment Box */}
                       <div className="bg-slate-50 dark:bg-slate-800/40 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
                         <div className="flex justify-between items-center">
-                          <span className="text-xs text-slate-500 font-medium">Payment Method:</span>
+                          <span className="text-xs text-slate-500 font-medium">Payment Mode:</span>
                           <span className={`text-xs font-black px-2 py-0.5 rounded ${
                             order.paymentMethod === 'COD' 
                               ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' 
@@ -295,21 +291,14 @@ export const AdminPanel: React.FC<AdminDashboardProps> = ({ orders = [] }) => {
                           <span className="font-mono text-slate-800 dark:text-slate-200">{order.transactionId}</span>
                         </div>
 
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-slate-500 font-medium">Payment Status:</span>
-                          <span className={`font-bold ${order.paymentStatus === 'Paid' ? 'text-emerald-600' : 'text-amber-500'}`}>
-                            {order.paymentStatus}
-                          </span>
-                        </div>
-
                         <div className="flex justify-between items-center pt-2 border-t border-slate-200 dark:border-slate-700">
-                          <span className="text-sm font-bold text-slate-900 dark:text-white">Total Collectable:</span>
+                          <span className="text-sm font-bold text-slate-900 dark:text-white">Collectable Amount:</span>
                           <span className="text-base font-black text-emerald-600 dark:text-emerald-400">₹{order.totalAmount}</span>
                         </div>
                       </div>
                     </div>
 
-                    {/* Column 3: COURIER LABEL QR & ACTIONS (3 Cols) */}
+                    {/* QR Code & Slip Print */}
                     <div className="lg:col-span-3 flex flex-col items-center justify-center p-4 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3 text-center">
                       <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">
                         📦 Delivery Slip QR
@@ -317,19 +306,19 @@ export const AdminPanel: React.FC<AdminDashboardProps> = ({ orders = [] }) => {
                       <div className="p-2 bg-white rounded-xl shadow-sm border border-slate-200">
                         <img 
                           src={qrUrl} 
-                          alt="Courier Label QR" 
+                          alt="Shipping Address QR" 
                           className="w-28 h-28 object-contain"
                         />
                       </div>
                       <p className="text-[11px] text-slate-400 leading-tight">
-                        Scan from mobile camera to grab delivery address directly
+                        Scan karke courier person direct address dekh sakta hai
                       </p>
 
                       <button 
                         onClick={() => window.print()}
                         className="w-full py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-black rounded-lg hover:opacity-90 transition"
                       >
-                        🖨️ Print Dispatch Label
+                        🖨️ Print Dispatch Slip
                       </button>
                     </div>
 
