@@ -22,7 +22,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ onClose }) => {
 
   const sliderImages = storeSettings?.checkoutSliderImages && storeSettings.checkoutSliderImages.length > 0 
     ? storeSettings.checkoutSliderImages 
-    : ['https://i.ibb.co/213pqNtr/Gemini-Generated-Image-e7j9d2e7j9d2e7j9.png'];
+    : ['https://i.ibb.co/sp7dDgpD/photo-2026-09-09-21-39-49.jpg'];
 
   useEffect(() => {
     if (sliderImages.length > 1) {
