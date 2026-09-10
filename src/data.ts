@@ -7,7 +7,7 @@ export const initialProducts: Product[] = [
     price: 249,
     mrp: 299,
     category: 'Hair Care',
-    imageUrl: 'https://i.ibb.co/LXp3p0d1/photo-2026-09-09-11-32-37.jpg',
+    imageUrl: 'https://i.ibb.co/sp7dDgpD/photo-2026-09-09-21-39-49.jpg',
     rating: 4.9,
     reviews: 842,
     ingredients: '100% Organic, Ayurvedic Hair Fall & Dandruff Control, Mineral Oil & Paraben Free'
